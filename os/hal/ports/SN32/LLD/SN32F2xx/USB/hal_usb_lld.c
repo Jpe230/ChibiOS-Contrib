@@ -209,11 +209,11 @@ static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz, bool 
  */
 static void usb_lld_serve_interrupt(USBDriver *usbp) {
     uint32_t iwIntFlag;
-
     /* Get Interrupt Status and clear immediately. */
     iwIntFlag = SN32_USB->INSTS;
-    /* Keep only PRESETUP & ERR_SETUP flags. */
-    SN32_USB->INSTSC &= ~(mskEP0_PRESETUP | mskERR_SETUP);
+    /* Clear Only Timeout flag, as all the others flags are handled by this method */
+    SN32_USB->INSTSC = mskERR_TIMEOUT;
+
 
     if (iwIntFlag == 0) {
         //@20160902 add for EMC protection
@@ -351,10 +351,11 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
             SN32_USB->INSTSC = (mskEP0_OUT_STALL);
         }
     }
+
     /////////////////////////////////////////////////
     /* Device Status Interrupt (EPnACK)            */
     /////////////////////////////////////////////////
-    else if (iwIntFlag & (mskEP6_ACK|mskEP5_ACK|mskEP4_ACK|mskEP3_ACK|mskEP2_ACK|mskEP1_ACK)) {
+    if (iwIntFlag & (mskEP6_ACK|mskEP5_ACK|mskEP4_ACK|mskEP3_ACK|mskEP2_ACK|mskEP1_ACK)) {
         // Determine the interrupting endpoint, direction, and clear the interrupt flag
         for(usbep_t ep = 1; ep <= USB_MAX_ENDPOINTS; ep++) {
             if (iwIntFlag & mskEPn_ACK(ep)){
@@ -363,7 +364,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
             }
         }
     }
-    else if (iwIntFlag & (mskEP6_NAK|mskEP5_NAK|mskEP4_NAK|mskEP3_NAK|mskEP2_NAK|mskEP1_NAK)) {
+    if (iwIntFlag & (mskEP6_NAK|mskEP5_NAK|mskEP4_NAK|mskEP3_NAK|mskEP2_NAK|mskEP1_NAK)) {
         // Determine the interrupting endpoint, direction, and clear the interrupt flag
         for(usbep_t ep = 1; ep <= USB_MAX_ENDPOINTS; ep++) {
             if (iwIntFlag & mskEPn_NAK(ep)){
